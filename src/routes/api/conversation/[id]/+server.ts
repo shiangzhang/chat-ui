@@ -31,13 +31,17 @@ export async function GET({ locals, params }) {
 					files: message.files,
 					updates: message.updates,
 				})),
-				modelTools: models.find((m) => m.id == conv.model)?.tools ?? false,
+				modelTools: models.find((m) => m.id === conv.model)?.tools ?? false,
 			};
 			return Response.json(res);
-		} else {
-			return Response.json({ message: "Conversation not found" }, { status: 404 });
 		}
-	} else {
-		return Response.json({ message: "Must have session cookie" }, { status: 401 });
+		return Response.json(
+			{ message: "Conversation not found" },
+			{ status: 404 },
+		);
 	}
+	return Response.json(
+		{ message: "Must have session cookie" },
+		{ status: 401 },
+	);
 }

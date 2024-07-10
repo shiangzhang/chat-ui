@@ -2,7 +2,7 @@ import { models } from "$lib/server/models";
 
 export async function GET() {
 	const res = models
-		.filter((m) => m.unlisted == false)
+		.filter((m) => m.unlisted === false)
 		.map((model) => ({
 			id: model.id,
 			name: model.name,

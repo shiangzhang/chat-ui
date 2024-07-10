@@ -2,7 +2,12 @@ import type { LayoutServerLoad } from "./$types";
 import { collections } from "$lib/server/database";
 import type { Conversation } from "$lib/types/Conversation";
 import { UrlDependency } from "$lib/types/UrlDependency";
-import { defaultModel, models, oldModels, validateModel } from "$lib/server/models";
+import {
+	defaultModel,
+	models,
+	oldModels,
+	validateModel,
+} from "$lib/server/models";
 import { authCondition, requiresUser } from "$lib/server/auth";
 import { DEFAULT_SETTINGS } from "$lib/types/Settings";
 import { env } from "$env/dynamic/private";
@@ -20,7 +25,9 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 	if (
 		settings &&
 		!validateModel(models).safeParse(settings?.activeModel).success &&
-		!settings.assistants?.map((el) => el.toString())?.includes(settings?.activeModel)
+		!settings.assistants
+			?.map((el) => el.toString())
+			?.includes(settings?.activeModel)
 	) {
 		settings.activeModel = defaultModel.id;
 		await collections.settings.updateOne(authCondition(locals), {
@@ -41,23 +48,28 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 
 	const enableAssistants = env.ENABLE_ASSISTANTS === "true";
 
-	const assistantActive = !models.map(({ id }) => id).includes(settings?.activeModel ?? "");
+	const assistantActive = !models
+		.map(({ id }) => id)
+		.includes(settings?.activeModel ?? "");
 
 	const assistant = assistantActive
 		? JSON.parse(
 				JSON.stringify(
 					await collections.assistants.findOne({
 						_id: new ObjectId(settings?.activeModel),
-					})
-				)
-		  )
+					}),
+				),
+			)
 		: null;
 
 	const conversations = await collections.conversations
 		.find(authCondition(locals))
 		.sort({ updatedAt: -1 })
 		.project<
-			Pick<Conversation, "title" | "model" | "_id" | "updatedAt" | "createdAt" | "assistantId">
+			Pick<
+				Conversation,
+				"title" | "model" | "_id" | "updatedAt" | "createdAt" | "assistantId"
+			>
 		>({
 			title: 1,
 			model: 1,
@@ -69,17 +81,24 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 		.limit(300)
 		.toArray();
 
-	const userAssistants = settings?.assistants?.map((assistantId) => assistantId.toString()) ?? [];
+	const userAssistants =
+		settings?.assistants?.map((assistantId) => assistantId.toString()) ?? [];
 	const userAssistantsSet = new Set(userAssistants);
 
 	const assistantIds = [
 		...userAssistants.map((el) => new ObjectId(el)),
-		...(conversations.map((conv) => conv.assistantId).filter((el) => !!el) as ObjectId[]),
+		...(conversations
+			.map((conv) => conv.assistantId)
+			.filter((el) => !!el) as ObjectId[]),
 	];
 
-	const assistants = await collections.assistants.find({ _id: { $in: assistantIds } }).toArray();
+	const assistants = await collections.assistants
+		.find({ _id: { $in: assistantIds } })
+		.toArray();
 
-	const messagesBeforeLogin = env.MESSAGES_BEFORE_LOGIN ? parseInt(env.MESSAGES_BEFORE_LOGIN) : 0;
+	const messagesBeforeLogin = env.MESSAGES_BEFORE_LOGIN
+		? Number.parseInt(env.MESSAGES_BEFORE_LOGIN)
+		: 0;
 
 	let loginRequired = false;
 
@@ -92,7 +111,12 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 				(
 					await collections.conversations
 						.aggregate([
-							{ $match: { ...authCondition(locals), "messages.from": "assistant" } },
+							{
+								$match: {
+									...authCondition(locals),
+									"messages.from": "assistant",
+								},
+							},
 							{ $project: { messages: 1 } },
 							{ $limit: messagesBeforeLogin + 1 },
 							{ $unwind: "$messages" },
@@ -106,7 +130,9 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 		}
 	}
 
-	const toolUseDuration = (await MetricsServer.getMetrics().tool.toolUseDuration.get()).values;
+	const toolUseDuration = (
+		await MetricsServer.getMetrics().tool.toolUseDuration.get()
+	).values;
 	return {
 		conversations: conversations.map((conv) => {
 			if (settings?.hideEmojiOnSidebar) {
@@ -124,7 +150,9 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 				assistantId: conv.assistantId?.toString(),
 				avatarHash:
 					conv.assistantId &&
-					assistants.find((a) => a._id.toString() === conv.assistantId?.toString())?.avatar,
+					assistants.find(
+						(a) => a._id.toString() === conv.assistantId?.toString(),
+					)?.avatar,
 			};
 		}) satisfies ConvSidebar[],
 		settings: {
@@ -178,8 +206,9 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 				isOnByDefault: tool.isOnByDefault,
 				isLocked: tool.isLocked,
 				timeToUseMS:
-					toolUseDuration.find((el) => el.labels.tool === tool.name && el.labels.quantile === 0.9)
-						?.value ?? 15_000,
+					toolUseDuration.find(
+						(el) => el.labels.tool === tool.name && el.labels.quantile === 0.9,
+					)?.value ?? 15_000,
 			})),
 		assistants: assistants
 			.filter((el) => userAssistantsSet.has(el._id.toString()))
@@ -188,7 +217,8 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 				_id: el._id.toString(),
 				createdById: undefined,
 				createdByMe:
-					el.createdById.toString() === (locals.user?._id ?? locals.sessionId).toString(),
+					el.createdById.toString() ===
+					(locals.user?._id ?? locals.sessionId).toString(),
 			})),
 		user: locals.user && {
 			id: locals.user._id.toString(),

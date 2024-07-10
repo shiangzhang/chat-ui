@@ -16,15 +16,20 @@ export async function GET({ locals }) {
 			.limit(300)
 			.toArray();
 
-		const userAssistants = settings?.assistants?.map((assistantId) => assistantId.toString()) ?? [];
+		const userAssistants =
+			settings?.assistants?.map((assistantId) => assistantId.toString()) ?? [];
 		const userAssistantsSet = new Set(userAssistants);
 
 		const assistantIds = [
 			...userAssistants.map((el) => new ObjectId(el)),
-			...(conversations.map((conv) => conv.assistantId).filter((el) => !!el) as ObjectId[]),
+			...(conversations
+				.map((conv) => conv.assistantId)
+				.filter((el) => !!el) as ObjectId[]),
 		];
 
-		const assistants = await collections.assistants.find({ _id: { $in: assistantIds } }).toArray();
+		const assistants = await collections.assistants
+			.find({ _id: { $in: assistantIds } })
+			.toArray();
 
 		const res = assistants
 			.filter((el) => userAssistantsSet.has(el._id.toString()))
@@ -33,11 +38,14 @@ export async function GET({ locals }) {
 				_id: el._id.toString(),
 				createdById: undefined,
 				createdByMe:
-					el.createdById.toString() === (locals.user?._id ?? locals.sessionId).toString(),
+					el.createdById.toString() ===
+					(locals.user?._id ?? locals.sessionId).toString(),
 			}));
 
 		return Response.json(res);
-	} else {
-		return Response.json({ message: "Must have session cookie" }, { status: 401 });
 	}
+	return Response.json(
+		{ message: "Must have session cookie" },
+		{ status: 401 },
+	);
 }

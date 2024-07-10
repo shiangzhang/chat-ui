@@ -11,7 +11,6 @@ export async function GET({ params }) {
 
 	if (assistant) {
 		return Response.json(assistant);
-	} else {
-		return Response.json({ message: "Assistant not found" }, { status: 404 });
 	}
+	return Response.json({ message: "Assistant not found" }, { status: 404 });
 }

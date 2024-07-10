@@ -52,7 +52,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 					...convBeforeCheck,
 					...convertLegacyConversation(convBeforeCheck),
 				},
-			}
+			},
 		);
 
 		if (!res.acknowledged) {
@@ -76,7 +76,9 @@ export async function POST({ request, locals, params, getClientAddress }) {
 		ip: getClientAddress(),
 	});
 
-	const messagesBeforeLogin = env.MESSAGES_BEFORE_LOGIN ? parseInt(env.MESSAGES_BEFORE_LOGIN) : 0;
+	const messagesBeforeLogin = env.MESSAGES_BEFORE_LOGIN
+		? Number.parseInt(env.MESSAGES_BEFORE_LOGIN)
+		: 0;
 
 	// guest mode check
 	if (!locals.user?._id && requiresUser && messagesBeforeLogin) {
@@ -84,7 +86,12 @@ export async function POST({ request, locals, params, getClientAddress }) {
 			(
 				await collections.conversations
 					.aggregate([
-						{ $match: { ...authCondition(locals), "messages.from": "assistant" } },
+						{
+							$match: {
+								...authCondition(locals),
+								"messages.from": "assistant",
+							},
+						},
 						{ $project: { messages: 1 } },
 						{ $limit: messagesBeforeLogin + 1 },
 						{ $unwind: "$messages" },
@@ -109,7 +116,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 			await collections.messageEvents.countDocuments({
 				ip: getClientAddress(),
 				createdAt: { $gte: new Date(Date.now() - 60_000) },
-			})
+			}),
 		);
 		if (nEvents > usageLimits.messagesPerMinute) {
 			throw error(429, ERROR_MESSAGES.rateLimited);
@@ -119,7 +126,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 	if (usageLimits?.messages && conv.messages.length > usageLimits.messages) {
 		throw error(
 			429,
-			`This conversation has more than ${usageLimits.messages} messages. Start a new one to continue`
+			`This conversation has more than ${usageLimits.messages} messages. Start a new one to continue`,
 		);
 	}
 
@@ -153,7 +160,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				z
 					.string()
 					.min(1)
-					.transform((s) => s.replace(/\r\n/g, "\n"))
+					.transform((s) => s.replace(/\r\n/g, "\n")),
 			),
 			is_retry: z.optional(z.boolean()),
 			is_continue: z.optional(z.boolean()),
@@ -175,10 +182,13 @@ export async function POST({ request, locals, params, getClientAddress }) {
 					mime: file.type,
 					name: name.join(";"),
 				};
-			})
+			}),
 	);
 
-	if (usageLimits?.messageLength && (newPrompt?.length ?? 0) > usageLimits.messageLength) {
+	if (
+		usageLimits?.messageLength &&
+		(newPrompt?.length ?? 0) > usageLimits.messageLength
+	) {
 		throw error(400, "Message too long.");
 	}
 
@@ -200,9 +210,9 @@ export async function POST({ request, locals, params, getClientAddress }) {
 		throw error(413, "File too large, should be <10MB");
 	}
 
-	const uploadedFiles = await Promise.all(b64Files.map((file) => uploadFile(file, conv))).then(
-		(files) => [...files, ...hashFiles]
-	);
+	const uploadedFiles = await Promise.all(
+		b64Files.map((file) => uploadFile(file, conv)),
+	).then((files) => [...files, ...hashFiles]);
 
 	// we will append tokens to the content of this message
 	let messageToWriteToId: Message["id"] | undefined = undefined;
@@ -212,7 +222,10 @@ export async function POST({ request, locals, params, getClientAddress }) {
 	if (isContinue && messageId) {
 		// if it's the last message and we continue then we build the prompt up to the last message
 		// we will strip the end tokens afterwards when the prompt is built
-		if ((conv.messages.find((msg) => msg.id === messageId)?.children?.length ?? 0) > 0) {
+		if (
+			(conv.messages.find((msg) => msg.id === messageId)?.children?.length ??
+				0) > 0
+		) {
 			throw error(400, "Can only continue the last message");
 		}
 		messageToWriteToId = messageId;
@@ -223,7 +236,9 @@ export async function POST({ request, locals, params, getClientAddress }) {
 		// if we're retrying on an assistant message, newPrompt cannot be set
 		// it means we're retrying the last assistant message for a new answer
 
-		const messageToRetry = conv.messages.find((message) => message.id === messageId);
+		const messageToRetry = conv.messages.find(
+			(message) => message.id === messageId,
+		);
 
 		if (!messageToRetry) {
 			throw error(404, "Message not found");
@@ -241,7 +256,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 					createdAt: new Date(),
 					updatedAt: new Date(),
 				},
-				messageId
+				messageId,
 			);
 			messageToWriteToId = addChildren(
 				conv,
@@ -251,7 +266,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 					createdAt: new Date(),
 					updatedAt: new Date(),
 				},
-				newUserMessageId
+				newUserMessageId,
 			);
 			messagesForPrompt = buildSubtree(conv, newUserMessageId);
 		} else if (messageToRetry.from === "assistant") {
@@ -259,8 +274,13 @@ export async function POST({ request, locals, params, getClientAddress }) {
 			// just add a sibling to the assistant answer where we can write to
 			messageToWriteToId = addSibling(
 				conv,
-				{ from: "assistant", content: "", createdAt: new Date(), updatedAt: new Date() },
-				messageId
+				{
+					from: "assistant",
+					content: "",
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				},
+				messageId,
 			);
 			messagesForPrompt = buildSubtree(conv, messageId);
 			messagesForPrompt.pop(); // don't need the latest assistant message in the prompt since we're retrying it
@@ -277,7 +297,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				createdAt: new Date(),
 				updatedAt: new Date(),
 			},
-			messageId
+			messageId,
 		);
 
 		messageToWriteToId = addChildren(
@@ -288,13 +308,15 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				createdAt: new Date(),
 				updatedAt: new Date(),
 			},
-			newUserMessageId
+			newUserMessageId,
 		);
 		// build the prompt from the user message
 		messagesForPrompt = buildSubtree(conv, newUserMessageId);
 	}
 
-	const messageToWriteTo = conv.messages.find((message) => message.id === messageToWriteToId);
+	const messageToWriteTo = conv.messages.find(
+		(message) => message.id === messageToWriteToId,
+	);
 	if (!messageToWriteTo) {
 		throw error(500, "Failed to create message");
 	}
@@ -305,7 +327,13 @@ export async function POST({ request, locals, params, getClientAddress }) {
 	// update the conversation with the new messages
 	await collections.conversations.updateOne(
 		{ _id: convId },
-		{ $set: { messages: conv.messages, title: conv.title, updatedAt: new Date() } }
+		{
+			$set: {
+				messages: conv.messages,
+				title: conv.title,
+				updatedAt: new Date(),
+			},
+		},
 	);
 
 	let doneStreaming = false;
@@ -327,13 +355,15 @@ export async function POST({ request, locals, params, getClientAddress }) {
 					messageToWriteTo.content += event.token;
 
 					// add to token total
-					MetricsServer.getMetrics().model.tokenCountTotal.inc({ model: model?.id });
+					MetricsServer.getMetrics().model.tokenCountTotal.inc({
+						model: model?.id,
+					});
 
 					// if this is the first token, add to time to first token
 					if (!lastTokenTimestamp) {
 						MetricsServer.getMetrics().model.timeToFirstToken.observe(
 							{ model: model?.id },
-							Date.now() - promptedAt.getTime()
+							Date.now() - promptedAt.getTime(),
 						);
 						lastTokenTimestamp = new Date();
 					}
@@ -341,7 +371,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 					// add to time per token
 					MetricsServer.getMetrics().model.timePerOutputToken.observe(
 						{ model: model?.id },
-						Date.now() - (lastTokenTimestamp ?? promptedAt).getTime()
+						Date.now() - (lastTokenTimestamp ?? promptedAt).getTime(),
 					);
 					lastTokenTimestamp = new Date();
 				}
@@ -351,7 +381,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 					conv.title = event.title;
 					await collections.conversations.updateOne(
 						{ _id: convId },
-						{ $set: { title: conv?.title, updatedAt: new Date() } }
+						{ $set: { title: conv?.title, updatedAt: new Date() } },
 					);
 				}
 
@@ -363,7 +393,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 					// add to latency
 					MetricsServer.getMetrics().model.latency.observe(
 						{ model: model?.id },
-						Date.now() - promptedAt.getTime()
+						Date.now() - promptedAt.getTime(),
 					);
 				}
 
@@ -371,7 +401,12 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				else if (event.type === MessageUpdateType.File) {
 					messageToWriteTo.files = [
 						...(messageToWriteTo.files ?? []),
-						{ type: "hash", name: event.name, value: event.sha, mime: event.mime },
+						{
+							type: "hash",
+							name: event.name,
+							value: event.sha,
+							mime: event.mime,
+						},
 					];
 				}
 
@@ -388,7 +423,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				}
 
 				// Send the update to the client
-				controller.enqueue(JSON.stringify(event) + "\n");
+				controller.enqueue(`${JSON.stringify(event)}\n`);
 
 				// Send 4096 of spaces to make sure the browser doesn't blocking buffer that holding the response
 				if (event.type === "finalAnswer") {
@@ -398,7 +433,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 
 			await collections.conversations.updateOne(
 				{ _id: convId },
-				{ $set: { title: conv.title, updatedAt: new Date() } }
+				{ $set: { title: conv.title, updatedAt: new Date() } },
 			);
 			messageToWriteTo.updatedAt = new Date();
 
@@ -441,7 +476,13 @@ export async function POST({ request, locals, params, getClientAddress }) {
 
 			await collections.conversations.updateOne(
 				{ _id: convId },
-				{ $set: { messages: conv.messages, title: conv?.title, updatedAt: new Date() } }
+				{
+					$set: {
+						messages: conv.messages,
+						title: conv?.title,
+						updatedAt: new Date(),
+					},
+				},
 			);
 
 			// used to detect if cancel() is called bc of interrupt or just because the connection closes
@@ -453,16 +494,26 @@ export async function POST({ request, locals, params, getClientAddress }) {
 			if (doneStreaming) return;
 			await collections.conversations.updateOne(
 				{ _id: convId },
-				{ $set: { messages: conv.messages, title: conv.title, updatedAt: new Date() } }
+				{
+					$set: {
+						messages: conv.messages,
+						title: conv.title,
+						updatedAt: new Date(),
+					},
+				},
 			);
 		},
 	});
 
 	if (conv.assistantId) {
 		await collections.assistantStats.updateOne(
-			{ assistantId: conv.assistantId, "date.at": startOfHour(new Date()), "date.span": "hour" },
+			{
+				assistantId: conv.assistantId,
+				"date.at": startOfHour(new Date()),
+				"date.span": "hour",
+			},
 			{ $inc: { count: 1 } },
-			{ upsert: true }
+			{ upsert: true },
 		);
 	}
 
@@ -517,7 +568,7 @@ export async function PATCH({ request, locals, params }) {
 			$set: {
 				title,
 			},
-		}
+		},
 	);
 
 	return new Response();

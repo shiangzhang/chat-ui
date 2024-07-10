@@ -6,14 +6,19 @@ import type { Conversation } from "$lib/types/Conversation";
 const NUM_PER_PAGE = 300;
 
 export async function GET({ locals, url }) {
-	const p = parseInt(url.searchParams.get("p") ?? "0");
+	const p = Number.parseInt(url.searchParams.get("p") ?? "0");
 
 	if (locals.user?._id || locals.sessionId) {
 		const convs = await collections.conversations
 			.find({
 				...authCondition(locals),
 			})
-			.project<Pick<Conversation, "_id" | "title" | "updatedAt" | "model" | "assistantId">>({
+			.project<
+				Pick<
+					Conversation,
+					"_id" | "title" | "updatedAt" | "model" | "assistantId"
+				>
+			>({
 				title: 1,
 				updatedAt: 1,
 				model: 1,
@@ -30,11 +35,13 @@ export async function GET({ locals, url }) {
 			updatedAt: conv.updatedAt,
 			modelId: conv.model,
 			assistantId: conv.assistantId,
-			modelTools: models.find((m) => m.id == conv.model)?.tools ?? false,
+			modelTools: models.find((m) => m.id === conv.model)?.tools ?? false,
 		}));
 
 		return Response.json(res);
-	} else {
-		return Response.json({ message: "Must have session cookie" }, { status: 401 });
 	}
+	return Response.json(
+		{ message: "Must have session cookie" },
+		{ status: 401 },
+	);
 }

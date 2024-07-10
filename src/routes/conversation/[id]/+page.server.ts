@@ -38,7 +38,7 @@ export const load = async ({ params, depends, locals }) => {
 			if (conversationExists) {
 				throw error(
 					403,
-					"You don't have access to this conversation. If someone gave you this link, ask them to use the 'share' feature instead."
+					"You don't have access to this conversation. If someone gave you this link, ask them to use the 'share' feature instead.",
 				);
 			}
 
@@ -46,7 +46,10 @@ export const load = async ({ params, depends, locals }) => {
 		}
 	}
 
-	const convertedConv = { ...conversation, ...convertLegacyConversation(conversation) };
+	const convertedConv = {
+		...conversation,
+		...convertLegacyConversation(conversation),
+	};
 
 	return {
 		messages: convertedConv.messages,
@@ -59,9 +62,9 @@ export const load = async ({ params, depends, locals }) => {
 					JSON.stringify(
 						await collections.assistants.findOne({
 							_id: new ObjectId(convertedConv.assistantId),
-						})
-					)
-			  )
+						}),
+					),
+				)
 			: null,
 		shared,
 	};
@@ -89,19 +92,23 @@ export const actions = {
 			.filter(
 				(message) =>
 					// not the message AND the message is not in ancestors
-					!(message.id === messageId) && message.ancestors && !message.ancestors.includes(messageId)
+					!(message.id === messageId) &&
+					message.ancestors &&
+					!message.ancestors.includes(messageId),
 			)
 			.map((message) => {
 				// remove the message from children if it's there
-				if (message.children && message.children.includes(messageId)) {
-					message.children = message.children.filter((child) => child !== messageId);
+				if (message.children?.includes(messageId)) {
+					message.children = message.children.filter(
+						(child) => child !== messageId,
+					);
 				}
 				return message;
 			});
 
 		await collections.conversations.updateOne(
 			{ _id: conversation._id, ...authCondition(locals) },
-			{ $set: { messages: filteredMessages } }
+			{ $set: { messages: filteredMessages } },
 		);
 
 		return { from: "deleteBranch", ok: true };

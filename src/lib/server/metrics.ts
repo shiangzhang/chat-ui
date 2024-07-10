@@ -5,7 +5,7 @@ import { env } from "$env/dynamic/private";
 import type { Model } from "$lib/types/Model";
 import type { Tool } from "$lib/types/Tool";
 import { onExit } from "./exitHandler";
-import { promisify } from "util";
+import { promisify } from "node:util";
 
 interface Metrics {
 	model: {
@@ -41,7 +41,7 @@ export class MetricsServer {
 		const app = express();
 
 		const port = Number(env.METRICS_PORT || "5565");
-		if (isNaN(port) || port < 0 || port > 65535) {
+		if (Number.isNaN(port) || port < 0 || port > 65535) {
 			logger.warn(`Invalid value for METRICS_PORT: ${env.METRICS_PORT}`);
 		}
 

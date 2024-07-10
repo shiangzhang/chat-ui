@@ -9,25 +9,31 @@ const NUM_PER_PAGE = 24;
 
 export async function GET({ url, locals }) {
 	const modelId = url.searchParams.get("modelId");
-	const pageIndex = parseInt(url.searchParams.get("p") ?? "0");
+	const pageIndex = Number.parseInt(url.searchParams.get("p") ?? "0");
 	const username = url.searchParams.get("user");
 	const query = url.searchParams.get("q")?.trim() ?? null;
-	const createdByCurrentUser = locals.user?.username && locals.user.username === username;
+	const createdByCurrentUser =
+		locals.user?.username && locals.user.username === username;
 
 	let user: Pick<User, "_id"> | null = null;
 	if (username) {
 		user = await collections.users.findOne<Pick<User, "_id">>(
 			{ username },
-			{ projection: { _id: 1 } }
+			{ projection: { _id: 1 } },
 		);
 		if (!user) {
-			return Response.json({ message: `User "${username}" doesn't exist` }, { status: 404 });
+			return Response.json(
+				{ message: `User "${username}" doesn't exist` },
+				{ status: 404 },
+			);
 		}
 	}
 
 	// if there is no user, we show community assistants, so only show featured assistants
 	const shouldBeFeatured =
-		env.REQUIRE_FEATURED_ASSISTANTS === "true" && !user ? { featured: true } : {};
+		env.REQUIRE_FEATURED_ASSISTANTS === "true" && !user
+			? { featured: true }
+			: {};
 
 	// if the user queried is not the current user, only show "public" assistants that have been shared before
 	const shouldHaveBeenShared =
