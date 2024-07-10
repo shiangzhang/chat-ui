@@ -2,10 +2,16 @@ import { env } from "$env/dynamic/private";
 import type { ChatTemplateInput } from "$lib/types/Template";
 import { compileTemplate } from "$lib/utils/template";
 import { z } from "zod";
-import endpoints, { endpointSchema, type Endpoint } from "./endpoints/endpoints";
+import endpoints, {
+	endpointSchema,
+	type Endpoint,
+} from "./endpoints/endpoints";
 import { endpointTgi } from "./endpoints/tgi/endpointTgi";
 import { sum } from "$lib/utils/sum";
-import { embeddingModels, validateEmbeddingModelByName } from "./embeddingModels";
+import {
+	embeddingModels,
+	validateEmbeddingModelByName,
+} from "./embeddingModels";
 
 import type { PreTrainedTokenizer } from "@xenova/transformers";
 
@@ -45,7 +51,7 @@ const modelConfig = z.object({
 			z.object({
 				title: z.string().min(1),
 				prompt: z.string().min(1),
-			})
+			}),
 		)
 		.optional(),
 	endpoints: z.array(endpointSchema).optional(),
@@ -67,10 +73,11 @@ const modelConfig = z.object({
 	embeddingModel: validateEmbeddingModelByName(embeddingModels).optional(),
 });
 
+console.log("models", env.MODELS);
 const modelsRaw = z.array(modelConfig).parse(JSON5.parse(env.MODELS));
 
 async function getChatPromptRender(
-	m: z.infer<typeof modelConfig>
+	m: z.infer<typeof modelConfig>,
 ): Promise<ReturnType<typeof compileTemplate<ChatTemplateInput>>> {
 	if (m.chatPromptTemplate) {
 		return compileTemplate<ChatTemplateInput>(m.chatPromptTemplate, m);
@@ -80,7 +87,7 @@ async function getChatPromptRender(
 	if (!m.tokenizer) {
 		return compileTemplate<ChatTemplateInput>(
 			"{{#if @root.preprompt}}<|im_start|>system\n{{@root.preprompt}}<|im_end|>\n{{/if}}{{#each messages}}{{#ifUser}}<|im_start|>user\n{{content}}<|im_end|>\n<|im_start|>assistant\n{{/ifUser}}{{#ifAssistant}}{{content}}<|im_end|>\n{{/ifAssistant}}{{/each}}",
-			m
+			m,
 		);
 	}
 
@@ -89,16 +96,23 @@ async function getChatPromptRender(
 	} catch (e) {
 		logger.error(
 			e,
-			`Failed to load tokenizer for model ${m.name} consider setting chatPromptTemplate manually or making sure the model is available on the hub.`
+			`Failed to load tokenizer for model ${m.name} consider setting chatPromptTemplate manually or making sure the model is available on the hub.`,
 		);
 		process.exit();
 	}
 
-	const renderTemplate = ({ messages, preprompt, tools, toolResults }: ChatTemplateInput) => {
-		let formattedMessages: { role: string; content: string }[] = messages.map((message) => ({
-			content: message.content,
-			role: message.from,
-		}));
+	const renderTemplate = ({
+		messages,
+		preprompt,
+		tools,
+		toolResults,
+	}: ChatTemplateInput) => {
+		let formattedMessages: { role: string; content: string }[] = messages.map(
+			(message) => ({
+				content: message.content,
+				role: message.from,
+			}),
+		);
 
 		if (preprompt) {
 			formattedMessages = [
@@ -122,14 +136,18 @@ async function getChatPromptRender(
 							.flatMap((result, idx) => {
 								if (result.status === ToolResultStatus.Error) {
 									return (
-										`Document: ${idx}\n` + `Tool "${result.call.name}" error\n` + result.message
+										`Document: ${idx}\n` +
+										`Tool "${result.call.name}" error\n` +
+										result.message
 									);
 								}
 								return (
 									`Document: ${idx}\n` +
 									result.outputs
 										.flatMap((output) =>
-											Object.entries(output).map(([title, text]) => `${title}\n${text}`)
+											Object.entries(output).map(
+												([title, text]) => `${title}\n${text}`,
+											),
 										)
 										.join("\n")
 								);
@@ -146,13 +164,18 @@ async function getChatPromptRender(
 
 		const documents = (toolResults ?? []).flatMap((result) => {
 			if (result.status === ToolResultStatus.Error) {
-				return [{ title: `Tool "${result.call.name}" error`, text: "\n" + result.message }];
+				return [
+					{
+						title: `Tool "${result.call.name}" error`,
+						text: "\n" + result.message,
+					},
+				];
 			}
 			return result.outputs.flatMap((output) =>
 				Object.entries(output).map(([title, text]) => ({
 					title: `Tool "${result.call.name}" ${title}`,
 					text: "\n" + text,
-				}))
+				})),
 			);
 		});
 
@@ -171,7 +194,9 @@ async function getChatPromptRender(
 		});
 
 		if (typeof output !== "string") {
-			throw new Error("Failed to apply chat template, the output is not a string");
+			throw new Error(
+				"Failed to apply chat template, the output is not a string",
+			);
 		}
 
 		return output;
@@ -185,7 +210,9 @@ const processModel = async (m: z.infer<typeof modelConfig>) => ({
 	chatPromptRender: await getChatPromptRender(m),
 	id: m.id || m.name,
 	displayName: m.displayName || m.name,
-	preprompt: m.prepromptUrl ? await fetch(m.prepromptUrl).then((r) => r.text()) : m.preprompt,
+	preprompt: m.prepromptUrl
+		? await fetch(m.prepromptUrl).then((r) => r.text())
+		: m.preprompt,
 	parameters: { ...m.parameters, stop_sequences: m.parameters?.stop },
 });
 
@@ -249,7 +276,7 @@ const addEndpoint = (m: Awaited<ReturnType<typeof processModel>>) => ({
 });
 
 export const models: ProcessedModel[] = await Promise.all(
-	modelsRaw.map((e) => processModel(e).then(addEndpoint))
+	modelsRaw.map((e) => processModel(e).then(addEndpoint)),
 );
 
 export const defaultModel = models[0];
@@ -262,10 +289,14 @@ export const oldModels = env.OLD_MODELS
 					id: z.string().optional(),
 					name: z.string().min(1),
 					displayName: z.string().min(1).optional(),
-				})
+				}),
 			)
 			.parse(JSON5.parse(env.OLD_MODELS))
-			.map((m) => ({ ...m, id: m.id || m.name, displayName: m.displayName || m.name }))
+			.map((m) => ({
+				...m,
+				id: m.id || m.name,
+				displayName: m.displayName || m.name,
+			}))
 	: [];
 
 export const validateModel = (_models: BackendModel[]) => {
@@ -277,10 +308,10 @@ export const validateModel = (_models: BackendModel[]) => {
 
 export const smallModel = env.TASK_MODEL
 	? (models.find((m) => m.name === env.TASK_MODEL) ||
-			(await processModel(modelConfig.parse(JSON5.parse(env.TASK_MODEL))).then((m) =>
-				addEndpoint(m)
+			(await processModel(modelConfig.parse(JSON5.parse(env.TASK_MODEL))).then(
+				(m) => addEndpoint(m),
 			))) ??
-	  defaultModel
+		defaultModel
 	: defaultModel;
 
 export type BackendModel = Optional<
