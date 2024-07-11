@@ -1,8 +1,8 @@
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig, type PluginOption } from "vite";
 import Icons from "unplugin-icons/vite";
-import { promises } from "fs";
-
+import { promises } from "node:fs";
+import { nodeLoaderPlugin } from "@vavite/node-loader/plugin";
 // used to load fonts server side for thumbnail generation
 function loadTTFAsArrayBuffer(): PluginOption {
 	return {
@@ -17,18 +17,25 @@ function loadTTFAsArrayBuffer(): PluginOption {
 	};
 }
 
-export default defineConfig({
-	plugins: [
+export default defineConfig(({ mode }) => {
+	let plugins = [
 		sveltekit(),
 		Icons({
 			compiler: "svelte",
 		}),
 		loadTTFAsArrayBuffer(),
-	],
-	optimizeDeps: {
-		include: ["browser-image-resizer", "uuid", "@xenova/transformers"],
-	},
-	server: {
-		open: "/",
-	},
+	];
+	if (mode === "development") {
+		plugins = [nodeLoaderPlugin(), ...plugins];
+	}
+
+	return {
+		optimizeDeps: {
+			include: ["browser-image-resizer", "uuid", "@xenova/transformers"],
+		},
+		server: {
+			open: "/",
+		},
+		plugins,
+	};
 });

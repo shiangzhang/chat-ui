@@ -25,8 +25,10 @@ import { createConvTreeStore } from "$lib/stores/convTree";
 import type { v4 } from "uuid";
 import { useSettingsStore } from "$lib/stores/settings.js";
 
+// biome-ignore lint/suspicious/noImplicitAnyLet: <explanation>
 export let data;
-
+const convTreeStore = createConvTreeStore();
+const settings = useSettingsStore();
 $: ({ messages } = data);
 
 let loading = false;
@@ -75,6 +77,7 @@ async function writeMessage({
 	isRetry?: boolean;
 	isContinue?: boolean;
 }): Promise<void> {
+	
 	try {
 		$isAborted = false;
 		loading = true;
@@ -154,6 +157,7 @@ async function writeMessage({
 		} else {
 			// just a normal linear conversation, so we add the user message
 			// and the blank assistant message back to back
+			
 			const newUserMessageId = addChildren(
 				{
 					messages,
@@ -172,7 +176,7 @@ async function writeMessage({
 			if (!data.rootMessageId) {
 				data.rootMessageId = newUserMessageId;
 			}
-
+			// 再加一个 AI 回复的消息
 			messageToWriteToId = addChildren(
 				{
 					messages,
@@ -189,10 +193,12 @@ async function writeMessage({
 		}
 
 		messages = [...messages];
+		// retry continue 时要用到 重新上传文件
 		const userMessage = messages.find((message) => message.id === messageId);
 		const messageToWriteTo = messages.find(
 			(message) => message.id === messageToWriteToId,
 		);
+		// 校验 messageToWriteTo 是否添加成功了
 		if (!messageToWriteTo) {
 			throw new Error("Message to write to not found");
 		}
@@ -342,7 +348,11 @@ onMount(async () => {
 	// only used in case of creating new conversations (from the parent POST endpoint)
 	if ($pendingMessage) {
 		files = $pendingMessage.files;
-		await writeMessage({ prompt: $pendingMessage.content });
+		if(messages.length === 0){
+			await writeMessage({ prompt: $pendingMessage.content });
+		}else{
+			await writeMessage({ prompt: $pendingMessage.content, messageId: messages[messages.length-1].id });
+		}
 		$pendingMessage = undefined;
 	}
 });
@@ -356,7 +366,7 @@ async function onMessage(event: CustomEvent<string>) {
 				await goto(`${base}/conversation/${convId}`, { invalidateAll: true });
 			})
 			.then(async () => await writeMessage({ prompt: event.detail }))
-			.finally(() => (loading = false));
+			.finally(() => {loading = false});
 	}
 }
 
@@ -382,7 +392,7 @@ async function onRetry(
 						isRetry: true,
 					}),
 			)
-			.finally(() => (loading = false));
+			.finally(() => {loading = false});
 	}
 }
 
@@ -401,20 +411,16 @@ async function onContinue(event: CustomEvent<{ id: Message["id"] }>) {
 						isContinue: true,
 					}),
 			)
-			.finally(() => (loading = false));
+			.finally(() => {loading = false});
 	}
 }
 
-$: $page.params.id,
-	($isAborted = true),
-		(loading = false),
-		($convTreeStore.editing = null);
+// biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
+// biome-ignore lint/style/noCommaOperator: <explanation>
+$: $page.params.id, (($isAborted = true), (loading = false), ($convTreeStore.editing = null));
 $: title =
 	data.conversations.find((conv) => conv.id === $page.params.id)?.title ??
 	data.title;
-
-const convTreeStore = createConvTreeStore();
-const settings = useSettingsStore();
 </script>
 
 <svelte:head>

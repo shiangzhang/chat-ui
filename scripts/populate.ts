@@ -1,4 +1,4 @@
-import readline from "readline";
+import readline from "node:readline";
 import minimist from "minimist";
 
 // @ts-expect-error: vite-node makes the var available but the typescript compiler doesn't see them
@@ -15,7 +15,7 @@ import type { Assistant } from "../src/lib/types/Assistant";
 import type { Conversation } from "../src/lib/types/Conversation";
 import type { Settings } from "../src/lib/types/Settings";
 import { defaultEmbeddingModel } from "../src/lib/server/embeddingModels.ts";
-import { Message } from "../src/lib/types/Message.ts";
+import type { Message } from "../src/lib/types/Message.ts";
 
 import { addChildren } from "../src/lib/utils/tree/addChildren.ts";
 import { generateSearchTokens } from "../src/lib/utils/searchTokens.ts";
@@ -25,13 +25,20 @@ const rl = readline.createInterface({
 	output: process.stdout,
 });
 
-rl.on("close", function () {
+rl.on("close", () => {
 	process.exit(0);
 });
 
-const possibleFlags = ["reset", "all", "users", "settings", "assistants", "conversations"];
+const possibleFlags = [
+	"reset",
+	"all",
+	"users",
+	"settings",
+	"assistants",
+	"conversations",
+];
 const argv = minimist(process.argv.slice(2));
-const flags = argv["_"].filter((flag) => possibleFlags.includes(flag));
+const flags = argv._.filter((flag) => possibleFlags.includes(flag));
 
 async function generateMessages(preprompt?: string): Promise<Message[]> {
 	const isLinear = faker.datatype.boolean(0.5);
@@ -68,7 +75,7 @@ async function generateMessages(preprompt?: string): Promise<Message[]> {
 					updatedAt: faker.date.recent({ days: 30 }),
 					interrupted: i === convLength - 1 && isInterrupted,
 				},
-				lastId
+				lastId,
 			);
 			isUser = !isUser;
 		}
@@ -93,8 +100,10 @@ async function generateMessages(preprompt?: string): Promise<Message[]> {
 				},
 				faker.helpers.arrayElement([
 					messages[0].id,
-					...messages.filter((m) => m.from === (isUser ? "assistant" : "user")).map((m) => m.id),
-				])
+					...messages
+						.filter((m) => m.from === (isUser ? "assistant" : "user"))
+						.map((m) => m.id),
+				]),
 			);
 
 			isUser = !isUser;
@@ -150,7 +159,7 @@ async function seed() {
 			await collections.settings.updateOne(
 				{ userId: user._id },
 				{ $set: { ...settings } },
-				{ upsert: true }
+				{ upsert: true },
 			);
 		});
 		console.log("Done updating settings.");
@@ -174,21 +183,24 @@ async function seed() {
 						modelId: faker.helpers.arrayElement(modelIds),
 						description: faker.lorem.sentence(),
 						preprompt: faker.hacker.phrase(),
-						exampleInputs: faker.helpers.multiple(() => faker.lorem.sentence(), {
-							count: faker.number.int({ min: 0, max: 4 }),
-						}),
+						exampleInputs: faker.helpers.multiple(
+							() => faker.lorem.sentence(),
+							{
+								count: faker.number.int({ min: 0, max: 4 }),
+							},
+						),
 						searchTokens: generateSearchTokens(name),
 						last24HoursCount: faker.number.int({ min: 0, max: 1000 }),
 					}),
-					{ count: faker.number.int({ min: 3, max: 10 }) }
+					{ count: faker.number.int({ min: 3, max: 10 }) },
 				);
 				await collections.assistants.insertMany(assistants);
 				await collections.settings.updateOne(
 					{ userId: user._id },
 					{ $set: { assistants: assistants.map((a) => a._id.toString()) } },
-					{ upsert: true }
+					{ upsert: true },
 				);
-			})
+			}),
 		);
 		console.log("Done creating assistants.");
 	}
@@ -199,10 +211,14 @@ async function seed() {
 			users.map(async (user) => {
 				const conversations = faker.helpers.multiple(
 					async () => {
-						const settings = await collections.settings.findOne<Settings>({ userId: user._id });
+						const settings = await collections.settings.findOne<Settings>({
+							userId: user._id,
+						});
 
 						const assistantId =
-							settings?.assistants && settings.assistants.length > 0 && faker.datatype.boolean(0.1)
+							settings?.assistants &&
+							settings.assistants.length > 0 &&
+							faker.datatype.boolean(0.1)
 								? faker.helpers.arrayElement<ObjectId>(settings.assistants)
 								: undefined;
 
@@ -211,7 +227,9 @@ async function seed() {
 								? await collections.assistants
 										.findOne({ _id: assistantId })
 										.then((assistant: Assistant) => assistant?.preprompt ?? "")
-								: faker.helpers.maybe(() => faker.hacker.phrase(), { probability: 0.5 })) ?? "";
+								: faker.helpers.maybe(() => faker.hacker.phrase(), {
+										probability: 0.5,
+									})) ?? "";
 
 						const messages = await generateMessages(preprompt);
 
@@ -223,7 +241,7 @@ async function seed() {
 							createdAt: faker.date.recent({ days: 145 }),
 							updatedAt: faker.date.recent({ days: 145 }),
 							model: faker.helpers.arrayElement(modelIds),
-							title: faker.internet.emoji() + " " + faker.hacker.phrase(),
+							title: `${faker.internet.emoji()} ${faker.hacker.phrase()}`,
 							embeddingModel: defaultEmbeddingModel.id,
 							messages,
 							rootMessageId: messages[0].id,
@@ -231,11 +249,13 @@ async function seed() {
 
 						return conv;
 					},
-					{ count: faker.number.int({ min: 10, max: 200 }) }
+					{ count: faker.number.int({ min: 10, max: 200 }) },
 				);
 
-				await collections.conversations.insertMany(await Promise.all(conversations));
-			})
+				await collections.conversations.insertMany(
+					await Promise.all(conversations),
+				);
+			}),
 		);
 		console.log("Done creating conversations.");
 	}
@@ -245,11 +265,7 @@ async function seed() {
 (async () => {
 	try {
 		rl.question(
-			"You're about to run a seeding script on the following MONGODB_URL: \x1b[31m" +
-				env.MONGODB_URL +
-				"\x1b[0m\n\n With the following flags: \x1b[31m" +
-				flags.join("\x1b[0m , \x1b[31m") +
-				"\x1b[0m\n \n\n Are you sure you want to continue? (yes/no): ",
+			`You're about to run a seeding script on the following MONGODB_URL: \x1b[31m${env.MONGODB_URL}\x1b[0m\n\n With the following flags: \x1b[31m${flags.join("\x1b[0m , \x1b[31m")}\x1b[0m\n \n\n Are you sure you want to continue? (yes/no): `,
 			async (confirm) => {
 				if (confirm !== "yes") {
 					console.log("Not 'yes', exiting.");
@@ -260,7 +276,7 @@ async function seed() {
 				await seed();
 				console.log("Seeding done.");
 				rl.close();
-			}
+			},
 		);
 	} catch (e) {
 		console.error(e);

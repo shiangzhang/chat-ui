@@ -10,8 +10,10 @@
 	import { findCurrentModel } from "$lib/utils/models";
 	import { onMount } from "svelte";
 
+	// biome-ignore lint/suspicious/noImplicitAnyLet: <explanation>
 	export let data;
 	let loading = false;
+	// biome-ignore lint/style/useConst: <explanation>
 	let files: File[] = [];
 
 	const settings = useSettingsStore();
@@ -26,7 +28,7 @@
 
 			const validModels = data.models.map((model) => model.id);
 
-			let model;
+			let model: string;
 			if (validModels.includes($settings.activeModel)) {
 				model = $settings.activeModel;
 			} else {

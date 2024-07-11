@@ -145,7 +145,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 	if (!json || typeof json !== "string") {
 		throw error(400, "Invalid request");
 	}
-
+	console.log("json:", json, "isMessageId");
 	const {
 		inputs: newPrompt,
 		id: messageId,

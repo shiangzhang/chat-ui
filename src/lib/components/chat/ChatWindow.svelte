@@ -36,29 +36,37 @@
 	import { useSettingsStore } from "$lib/stores/settings";
 	import type { ToolFront } from "$lib/types/Tool";
 
+	// biome-ignore lint/style/useConst: <explanation>
 	export let messages: Message[] = [];
+	// biome-ignore lint/style/useConst: <explanation>
 	export let loading = false;
+	// biome-ignore lint/style/useConst: <explanation>
 	export let pending = false;
 
+	// biome-ignore lint/style/useConst: <explanation>
 	export let shared = false;
 	export let currentModel: Model;
 	export let models: Model[];
+	// biome-ignore lint/style/useConst: <explanation>
 	export let assistant: Assistant | undefined = undefined;
+	// biome-ignore lint/style/useConst: <explanation>
 	export let preprompt: string | undefined = undefined;
 	export let files: File[] = [];
 
 	$: isReadOnly = !models.some((model) => model.id === currentModel.id);
 
+	// biome-ignore lint/style/useConst: <explanation>
 	let loginModalOpen = false;
 	let message: string;
 	let timeout: ReturnType<typeof setTimeout>;
 	let isSharedRecently = false;
+	// biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
 	$: $page.params.id && (isSharedRecently = false);
 
 	const dispatch = createEventDispatcher<{
 		message: string;
-		share: void;
-		stop: void;
+		share?: ()=>void;
+		stop?: ()=>void;
 		retry: { id: Message["id"]; content?: string };
 		continue: { id: Message["id"] };
 	}>();
@@ -111,7 +119,7 @@
 
 	const convTreeStore = useConvTreeStore();
 
-	$: lastMessage = browser && (messages.find((m) => m.id == $convTreeStore.leaf) as Message);
+	$: lastMessage = browser && (messages.find((m) => m.id === $convTreeStore.leaf) as Message);
 	$: lastIsError =
 		lastMessage &&
 		!loading &&

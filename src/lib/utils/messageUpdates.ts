@@ -15,30 +15,41 @@ import {
 	type MessageToolResultUpdate,
 } from "$lib/types/MessageUpdate";
 
-export const isMessageWebSearchUpdate = (update: MessageUpdate): update is MessageWebSearchUpdate =>
+export const isMessageWebSearchUpdate = (
+	update: MessageUpdate,
+): update is MessageWebSearchUpdate =>
 	update.type === MessageUpdateType.WebSearch;
 export const isMessageWebSearchGeneralUpdate = (
-	update: MessageUpdate
+	update: MessageUpdate,
 ): update is MessageWebSearchGeneralUpdate =>
-	isMessageWebSearchUpdate(update) && update.subtype === MessageWebSearchUpdateType.Update;
+	isMessageWebSearchUpdate(update) &&
+	update.subtype === MessageWebSearchUpdateType.Update;
 export const isMessageWebSearchSourcesUpdate = (
-	update: MessageUpdate
+	update: MessageUpdate,
 ): update is MessageWebSearchSourcesUpdate =>
-	isMessageWebSearchUpdate(update) && update.subtype === MessageWebSearchUpdateType.Sources;
+	isMessageWebSearchUpdate(update) &&
+	update.subtype === MessageWebSearchUpdateType.Sources;
 export const isMessageWebSearchErrorUpdate = (
-	update: MessageUpdate
+	update: MessageUpdate,
 ): update is MessageWebSearchErrorUpdate =>
-	isMessageWebSearchUpdate(update) && update.subtype === MessageWebSearchUpdateType.Error;
+	isMessageWebSearchUpdate(update) &&
+	update.subtype === MessageWebSearchUpdateType.Error;
 
-export const isMessageToolUpdate = (update: MessageUpdate): update is MessageToolUpdate =>
-	update.type === MessageUpdateType.Tool;
-export const isMessageToolCallUpdate = (update: MessageUpdate): update is MessageToolCallUpdate =>
+export const isMessageToolUpdate = (
+	update: MessageUpdate,
+): update is MessageToolUpdate => update.type === MessageUpdateType.Tool;
+export const isMessageToolCallUpdate = (
+	update: MessageUpdate,
+): update is MessageToolCallUpdate =>
 	isMessageToolUpdate(update) && update.subtype === MessageToolUpdateType.Call;
 export const isMessageToolResultUpdate = (
-	update: MessageUpdate
+	update: MessageUpdate,
 ): update is MessageToolResultUpdate =>
-	isMessageToolUpdate(update) && update.subtype === MessageToolUpdateType.Result;
-export const isMessageToolErrorUpdate = (update: MessageUpdate): update is MessageToolErrorUpdate =>
+	isMessageToolUpdate(update) &&
+	update.subtype === MessageToolUpdateType.Result;
+export const isMessageToolErrorUpdate = (
+	update: MessageUpdate,
+): update is MessageToolErrorUpdate =>
 	isMessageToolUpdate(update) && update.subtype === MessageToolUpdateType.Error;
 
 type MessageUpdateRequestOptions = {
@@ -54,7 +65,7 @@ type MessageUpdateRequestOptions = {
 export async function fetchMessageUpdates(
 	conversationId: string,
 	opts: MessageUpdateRequestOptions,
-	abortSignal: AbortSignal
+	abortSignal: AbortSignal,
 ): Promise<AsyncGenerator<MessageUpdate>> {
 	const abortController = new AbortController();
 	abortSignal.addEventListener("abort", () => abortController.abort());
@@ -69,13 +80,13 @@ export async function fetchMessageUpdates(
 		web_search: opts.webSearch,
 		tools: opts.tools,
 	});
+	if (opts.files) {
+		for (const file of opts.files) {
+			const name = `${file.type};${file.name}`;
 
-	opts.files?.forEach((file) => {
-		const name = file.type + ";" + file.name;
-
-		form.append("files", new File([file.value], name, { type: file.mime }));
-	});
-
+			form.append("files", new File([file.value], name, { type: file.mime }));
+		}
+	}
 	form.append("data", optsJSON);
 
 	const response = await fetch(`${opts.base}/conversation/${conversationId}`, {
@@ -88,22 +99,29 @@ export async function fetchMessageUpdates(
 		const errorMessage = await response
 			.json()
 			.then((obj) => obj.message)
-			.catch(() => `Request failed with status code ${response.status}: ${response.statusText}`);
+			.catch(
+				() =>
+					`Request failed with status code ${response.status}: ${response.statusText}`,
+			);
 		throw Error(errorMessage);
 	}
 	if (!response.body) {
 		throw Error("Body not defined");
 	}
 	return smoothAsyncIterator(
-		streamMessageUpdatesToFullWords(endpointStreamToIterator(response, abortController))
+		streamMessageUpdatesToFullWords(
+			endpointStreamToIterator(response, abortController),
+		),
 	);
 }
 
 async function* endpointStreamToIterator(
 	response: Response,
-	abortController: AbortController
+	abortController: AbortController,
 ): AsyncGenerator<MessageUpdate> {
-	const reader = response.body?.pipeThrough(new TextDecoderStream()).getReader();
+	const reader = response.body
+		?.pipeThrough(new TextDecoderStream())
+		.getReader();
 	if (!reader) throw Error("Response for endpoint had no body");
 
 	// Handle any cases where we must abort
@@ -123,7 +141,9 @@ async function* endpointStreamToIterator(
 		}
 		if (!value) continue;
 
-		const { messageUpdates, remainingText } = parseMessageUpdates(prevChunk + value);
+		const { messageUpdates, remainingText } = parseMessageUpdates(
+			prevChunk + value,
+		);
 		prevChunk = remainingText;
 		for (const messageUpdate of messageUpdates) yield messageUpdate;
 	}
@@ -158,7 +178,7 @@ function parseMessageUpdates(value: string): {
  * Only supports latin languages, ignores others
  */
 async function* streamMessageUpdatesToFullWords(
-	iterator: AsyncGenerator<MessageUpdate>
+	iterator: AsyncGenerator<MessageUpdate>,
 ): AsyncGenerator<MessageUpdate> {
 	let bufferedStreamUpdates: MessageStreamUpdate[] = [];
 
@@ -174,8 +194,12 @@ async function* streamMessageUpdatesToFullWords(
 
 		let lastIndexEmitted = 0;
 		for (let i = 1; i < bufferedStreamUpdates.length; i++) {
-			const prevEndsAlphanumeric = endAlphanumeric.test(bufferedStreamUpdates[i - 1].token);
-			const currBeginsAlphanumeric = beginnningAlphanumeric.test(bufferedStreamUpdates[i].token);
+			const prevEndsAlphanumeric = endAlphanumeric.test(
+				bufferedStreamUpdates[i - 1].token,
+			);
+			const currBeginsAlphanumeric = beginnningAlphanumeric.test(
+				bufferedStreamUpdates[i].token,
+			);
 			const shouldCombine = prevEndsAlphanumeric && currBeginsAlphanumeric;
 			const combinedTooMany = i - lastIndexEmitted >= 5;
 			if (shouldCombine && !combinedTooMany) continue;
@@ -199,7 +223,9 @@ async function* streamMessageUpdatesToFullWords(
  * Attempts to smooth out the time between values emitted by an async iterator
  * by waiting for the average time between values to emit the next value
  */
-async function* smoothAsyncIterator<T>(iterator: AsyncGenerator<T>): AsyncGenerator<T> {
+async function* smoothAsyncIterator<T>(
+	iterator: AsyncGenerator<T>,
+): AsyncGenerator<T> {
 	const eventTarget = new EventTarget();
 	let done = false;
 	const valuesBuffer: T[] = [];
@@ -237,7 +263,7 @@ async function* smoothAsyncIterator<T>(iterator: AsyncGenerator<T>): AsyncGenera
 
 		const averageTimeMSBetweenValues = Math.min(
 			200,
-			timeMSBetweenValues / (sampledTimesMS.length - 1)
+			timeMSBetweenValues / (sampledTimesMS.length - 1),
 		);
 		const timeSinceLastEmitMS = performance.now() - timeOfLastEmitMS;
 
@@ -263,5 +289,7 @@ async function* smoothAsyncIterator<T>(iterator: AsyncGenerator<T>): AsyncGenera
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const waitForEvent = (eventTarget: EventTarget, eventName: string) =>
 	new Promise<boolean>((resolve) =>
-		eventTarget.addEventListener(eventName, () => resolve(true), { once: true })
+		eventTarget.addEventListener(eventName, () => resolve(true), {
+			once: true,
+		}),
 	);

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { marked, type MarkedOptions } from "marked";
+	import { marked, type RendererExtensionFunction, type TokenizerExtensionFunction, type TokenizerStartFunction, type MarkedOptions } from "marked";
 	import markedKatex from "marked-katex-extension";
 	import type { Message, MessageFile } from "$lib/types/Message";
 	import { afterUpdate, createEventDispatcher, tick } from "svelte";
@@ -57,13 +57,31 @@
 		return md.replaceAll("&lt;", "<");
 	}
 
-	export let model: Model;
-	export let id: Message["id"];
-	export let messages: Message[];
-	export let loading = false;
-	export let isAuthor = true;
-	export let readOnly = false;
-	export let isTapped = false;
+	interface CustomMarkedExtension {
+	renderers: {
+		[name: string]: RendererExtensionFunction;
+	};
+	childTokens: {
+		[name: string]: string[];
+	};
+	inline?: TokenizerExtensionFunction[];
+	block?: TokenizerExtensionFunction[];
+	startInline?: TokenizerStartFunction[];
+	startBlock?: TokenizerStartFunction[];
+}
+
+export let model: Model;
+export let id: Message["id"];
+export let messages: Message[];
+// biome-ignore lint/style/useConst: <explanation>
+export let loading = false;
+// biome-ignore lint/style/useConst: <explanation>
+export let isAuthor = true;
+// biome-ignore lint/style/useConst: <explanation>
+export let readOnly = false;
+// biome-ignore lint/style/useConst: <explanation>
+export let isTapped = false;
+let webSearchIsDone = true;
 
 	$: message = messages.find((m) => m.id === id) ?? ({} as Message);
 
@@ -94,7 +112,7 @@
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const { extensions, ...defaults } = marked.getDefaults() as MarkedOptions & {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		extensions: any;
+		extensions: CustomMarkedExtension;
 	};
 	const options: MarkedOptions = {
 		...defaults,
@@ -160,9 +178,8 @@
 			return acc;
 		}, {} as Record<string, MessageToolUpdate[]>);
 
-	$: downloadLink = urlNotTrailing + `/message/${message.id}/prompt`;
+	$: downloadLink = `${urlNotTrailing}/message/${message.id}/prompt`;
 
-	let webSearchIsDone = true;
 
 	$: webSearchIsDone = searchUpdates.some(
 		(update) => update.subtype === MessageWebSearchUpdateType.Finished

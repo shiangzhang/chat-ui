@@ -6,7 +6,7 @@ import type { ObjectId } from "mongodb";
 import { getContext, setContext } from "svelte";
 import { type Writable, writable, get } from "svelte/store";
 
-type SettingsStore = {
+export type SettingsStore = {
 	shareConversationsWithModelAuthors: boolean;
 	hideEmojiOnSidebar: boolean;
 	ethicsModalAccepted: boolean;
@@ -27,7 +27,9 @@ export function useSettingsStore() {
 	return getContext<SettingsStoreWritable>("settings");
 }
 
-export function createSettingsStore(initialValue: Omit<SettingsStore, "recentlySaved">) {
+export function createSettingsStore(
+	initialValue: Omit<SettingsStore, "recentlySaved">,
+) {
 	const baseStore = writable({ ...initialValue, recentlySaved: false });
 
 	let timeoutId: NodeJS.Timeout;
