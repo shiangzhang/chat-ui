@@ -7,6 +7,7 @@
 	import { page } from "$app/stores";
 
 	import CodeBlock from "../CodeBlock.svelte";
+	import MermaidBlock from "../MermaidBlock.svelte";
 	import CopyToClipBoardBtn from "../CopyToClipBoardBtn.svelte";
 	import IconLoading from "../icons/IconLoading.svelte";
 	import CarbonRotate360 from "~icons/carbon/rotate-360";
@@ -318,7 +319,11 @@ let webSearchIsDone = true;
 				{/if}
 				{#each tokens as token}
 					{#if token.type === "code"}
-						<CodeBlock lang={token.lang} code={unsanitizeMd(token.text)} />
+						{#if token.lang === "mermaid"}
+							<MermaidBlock code={unsanitizeMd(token.text)} />
+						{:else}
+							<CodeBlock lang={token.lang} code={unsanitizeMd(token.text)} />
+						{/if}
 					{:else}
 						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 						{@html marked.parse(token.raw, options)}

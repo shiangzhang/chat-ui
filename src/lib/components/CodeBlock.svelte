@@ -2,7 +2,9 @@
 	import { afterUpdate } from "svelte";
 	import CopyToClipBoardBtn from "./CopyToClipBoardBtn.svelte";
 
+	// biome-ignore lint/style/useConst: <explanation>
 	export let code = "";
+	// biome-ignore lint/style/useConst: <explanation>
 	export let lang = "";
 
 	$: highlightedCode = "";

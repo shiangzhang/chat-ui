@@ -130,30 +130,20 @@ async function getChatPromptRender(
 			formattedMessages = [
 				{
 					role: "system",
-					content:
-						"\n\n<results>\n" +
-						toolResults
-							.flatMap((result, idx) => {
-								if (result.status === ToolResultStatus.Error) {
-									return (
-										`Document: ${idx}\n` +
-										`Tool "${result.call.name}" error\n` +
-										result.message
-									);
-								}
-								return (
-									`Document: ${idx}\n` +
-									result.outputs
-										.flatMap((output) =>
-											Object.entries(output).map(
-												([title, text]) => `${title}\n${text}`,
-											),
-										)
-										.join("\n")
-								);
-							})
-							.join("\n\n") +
-						"\n</results>",
+					content: `\n\n<results>\n${toolResults
+						.flatMap((result, idx) => {
+							if (result.status === ToolResultStatus.Error) {
+								return `Document: ${idx}\nTool "${result.call.name}" error\n${result.message}`;
+							}
+							return `Document: ${idx}\n${result.outputs
+								.flatMap((output) =>
+									Object.entries(output).map(
+										([title, text]) => `${title}\n${text}`,
+									),
+								)
+								.join("\n")}`;
+						})
+						.join("\n\n")}\n</results>`,
 				},
 				...formattedMessages,
 			];
@@ -167,14 +157,14 @@ async function getChatPromptRender(
 				return [
 					{
 						title: `Tool "${result.call.name}" error`,
-						text: "\n" + result.message,
+						text: `\n${result.message}`,
 					},
 				];
 			}
 			return result.outputs.flatMap((output) =>
 				Object.entries(output).map(([title, text]) => ({
 					title: `Tool "${result.call.name}" ${title}`,
-					text: "\n" + text,
+					text: `\n${text}`,
 				})),
 			);
 		});
@@ -271,7 +261,7 @@ const addEndpoint = (m: Awaited<ReturnType<typeof processModel>>) => ({
 			random -= endpoint.weight;
 		}
 
-		throw new Error(`Failed to select endpoint`);
+		throw new Error("Failed to select endpoint");
 	},
 });
 

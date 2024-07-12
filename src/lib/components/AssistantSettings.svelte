@@ -30,14 +30,19 @@
 	type AssistantFront = Omit<Assistant, "_id" | "createdById"> & { _id: string };
 
 	export let form: ActionData;
+	// biome-ignore lint/style/useConst: <explanation>
 	export let assistant: AssistantFront | undefined = undefined;
+	// biome-ignore lint/style/useConst: <explanation>
 	export let models: Model[] = [];
 
 	let files: FileList | null = null;
 	const settings = useSettingsStore();
 	let modelId = "";
+	// biome-ignore lint/style/useConst: <explanation>
 	let systemPrompt = assistant?.preprompt ?? "";
+	// biome-ignore lint/style/useConst: <explanation>
 	let dynamicPrompt = assistant?.dynamicPrompt ?? false;
+	// biome-ignore lint/style/useConst: <explanation>
 	let showModelSettings = Object.values(assistant?.generateSettings ?? {}).some((v) => !!v);
 
 	let compress: typeof readAndCompressImage | null = null;
@@ -49,9 +54,13 @@
 		modelId = findCurrentModel(models, assistant ? assistant.modelId : $settings.activeModel).id;
 	});
 
+	// biome-ignore lint/style/useConst: <explanation>
 	let inputMessage1 = assistant?.exampleInputs[0] ?? "";
+	// biome-ignore lint/style/useConst: <explanation>
 	let inputMessage2 = assistant?.exampleInputs[1] ?? "";
+	// biome-ignore lint/style/useConst: <explanation>
 	let inputMessage3 = assistant?.exampleInputs[2] ?? "";
+	// biome-ignore lint/style/useConst: <explanation>
 	let inputMessage4 = assistant?.exampleInputs[3] ?? "";
 
 	function resetErrors() {
@@ -83,11 +92,13 @@
 
 	let deleteExistingAvatar = false;
 
+	// biome-ignore lint/style/useConst: <explanation>
 	let loading = false;
 
+	// biome-ignore lint/style/useConst: <explanation>
 	let ragMode: false | "links" | "domains" | "all" = assistant?.rag?.allowAllDomains
 		? "all"
-		: assistant?.rag?.allowedLinks?.length ?? 0 > 0
+		: (assistant?.rag?.allowedLinks?.length ?? 0) > 0
 		? "links"
 		: (assistant?.rag?.allowedDomains?.length ?? 0) > 0
 		? "domains"

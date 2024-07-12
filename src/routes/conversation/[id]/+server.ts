@@ -21,8 +21,13 @@ import { addChildren } from "$lib/utils/tree/addChildren.js";
 import { addSibling } from "$lib/utils/tree/addSibling.js";
 import { usageLimits } from "$lib/server/usageLimits";
 import { MetricsServer } from "$lib/server/metrics";
-import { textGeneration } from "$lib/server/textGeneration";
+import {
+	textGeneration,
+	textGenerationWithoutTitle,
+} from "$lib/server/textGeneration";
 import type { TextGenerationContext } from "$lib/server/textGeneration/types";
+import { sleep } from "openai/core.js";
+import type { EndpointMessage } from "$lib/server/endpoints/endpoints";
 
 export async function POST({ request, locals, params, getClientAddress }) {
 	const id = z.string().parse(params.id);
@@ -337,7 +342,9 @@ export async function POST({ request, locals, params, getClientAddress }) {
 	);
 
 	let doneStreaming = false;
-
+	// 后续可以作为链式调用的状态值
+	let doneDiagrammating = false;
+	let ctx: TextGenerationContext;
 	let lastTokenTimestamp: undefined | Date = undefined;
 
 	// we now build the stream
@@ -389,12 +396,36 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				else if (event.type === MessageUpdateType.FinalAnswer) {
 					messageToWriteTo.interrupted = event.interrupted;
 					messageToWriteTo.content = initialMessageContent + event.text;
-
+					console.log("final answer:", event.text);
 					// add to latency
 					MetricsServer.getMetrics().model.latency.observe(
 						{ model: model?.id },
 						Date.now() - promptedAt.getTime(),
 					);
+					// 链式调用判断是否合适转换成图解
+					if (!doneDiagrammating) {
+						const prompt =
+							"以下内容是否适合用流程图、饼图、Timeline图等形式进行描述？如果合适你帮我转换成 mermaid 格式的数据";
+						ctx.messages = ctx.messages.slice(ctx.messages.length - 1);
+						ctx.messages[ctx.messages.length - 1].content = `${prompt}
+						'''
+						${messageToWriteTo.content}
+						'''
+						`;
+						doneDiagrammating = true;
+
+						const newCtx = { ...ctx };
+						const msg: Message = {
+							id: "",
+							content: prompt,
+							from: "user",
+						};
+						newCtx.messages.push(msg);
+						await sleep(1000);
+						for await (const event of textGenerationWithoutTitle(newCtx)) {
+							await update(event);
+						}
+					}
 				}
 
 				// Add file
@@ -419,14 +450,16 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				// by padding the text with null chars to a fixed length
 				// https://cdn.arstechnica.net/wp-content/uploads/2024/03/LLM-Side-Channel.pdf
 				if (event.type === MessageUpdateType.Stream) {
-					event = { ...event, token: event.token.padEnd(16, "\0") };
+					event.token = event.token.padEnd(16, "\0");
 				}
 
 				// Send the update to the client
-				controller.enqueue(`${JSON.stringify(event)}\n`);
+				if (event.type !== "finalAnswer" || doneDiagrammating) {
+					controller.enqueue(`${JSON.stringify(event)}\n`);
+				}
 
 				// Send 4096 of spaces to make sure the browser doesn't blocking buffer that holding the response
-				if (event.type === "finalAnswer") {
+				if (event.type === "finalAnswer" && doneDiagrammating) {
 					controller.enqueue(" ".repeat(4096));
 				}
 			}
@@ -440,7 +473,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 			let hasError = false;
 			const initialMessageContent = messageToWriteTo.content;
 			try {
-				const ctx: TextGenerationContext = {
+				ctx = {
 					model,
 					endpoint: await model.getEndpoint(),
 					conv,

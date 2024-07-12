@@ -2,11 +2,14 @@ import { env } from "$env/dynamic/private";
 import { generateFromDefaultEndpoint } from "$lib/server/generateFromDefaultEndpoint";
 import type { EndpointMessage } from "../endpoints/endpoints";
 import { logger } from "$lib/server/logger";
-import { MessageUpdateType, type MessageUpdate } from "$lib/types/MessageUpdate";
+import {
+	MessageUpdateType,
+	type MessageUpdate,
+} from "$lib/types/MessageUpdate";
 import type { Conversation } from "$lib/types/Conversation";
 
 export async function* generateTitleForConversation(
-	conv: Conversation
+	conv: Conversation,
 ): AsyncGenerator<MessageUpdate, undefined, undefined> {
 	try {
 		const userMessage = conv.messages.find((m) => m.from === "user");
@@ -21,7 +24,9 @@ export async function* generateTitleForConversation(
 			title,
 		};
 	} catch (cause) {
-		console.error(Error("Failed whilte generating title for conversation", { cause }));
+		console.error(
+			Error("Failed whilte generating title for conversation", { cause }),
+		);
 	}
 }
 
@@ -46,9 +51,15 @@ export async function generateTitle(prompt: string) {
 		{ from: "assistant", content: "📰 Latest news" },
 		{ from: "user", content: "How to make a great cheesecake?" },
 		{ from: "assistant", content: "🍰 Cheesecake recipe" },
-		{ from: "user", content: "what is your favorite movie? do a short answer." },
+		{
+			from: "user",
+			content: "what is your favorite movie? do a short answer.",
+		},
 		{ from: "assistant", content: "🎥 Favorite movie" },
-		{ from: "user", content: "Explain the concept of artificial intelligence in one sentence" },
+		{
+			from: "user",
+			content: "Explain the concept of artificial intelligence in one sentence",
+		},
 		{ from: "assistant", content: "🤖 AI definition" },
 		{ from: "user", content: "Draw a cute cat" },
 		{ from: "assistant", content: "🐱 Cute cat drawing" },
@@ -66,7 +77,7 @@ export async function generateTitle(prompt: string) {
 		.then((summary) => {
 			// add an emoji if none is found in the first three characters
 			if (!/\p{Emoji}/u.test(summary.slice(0, 3))) {
-				return "💬 " + summary;
+				return `💬 ${summary}`;
 			}
 			return summary;
 		})
