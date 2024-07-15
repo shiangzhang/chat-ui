@@ -23,11 +23,10 @@ import { usageLimits } from "$lib/server/usageLimits";
 import { MetricsServer } from "$lib/server/metrics";
 import {
 	textGeneration,
-	textGenerationWithoutTitle,
+	textGenerationWithPrompt,
 } from "$lib/server/textGeneration";
 import type { TextGenerationContext } from "$lib/server/textGeneration/types";
 import { sleep } from "openai/core.js";
-import type { EndpointMessage } from "$lib/server/endpoints/endpoints";
 
 export async function POST({ request, locals, params, getClientAddress }) {
 	const id = z.string().parse(params.id);
@@ -346,6 +345,8 @@ export async function POST({ request, locals, params, getClientAddress }) {
 	let doneDiagrammating = false;
 	let ctx: TextGenerationContext;
 	let lastTokenTimestamp: undefined | Date = undefined;
+	let preMessageContent: string;
+	let needStream = true;
 
 	// we now build the stream
 	const stream = new ReadableStream({
@@ -357,7 +358,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				}
 
 				// Add token to content or skip if empty
-				if (event.type === MessageUpdateType.Stream) {
+				if (event.type === MessageUpdateType.Stream && needStream) {
 					if (event.token === "") return;
 					messageToWriteTo.content += event.token;
 
@@ -395,7 +396,15 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				// Set the final text and the interrupted flag
 				else if (event.type === MessageUpdateType.FinalAnswer) {
 					messageToWriteTo.interrupted = event.interrupted;
-					messageToWriteTo.content = initialMessageContent + event.text;
+					if (doneDiagrammating) {
+						messageToWriteTo.content = `${preMessageContent}\n${event.text}`;
+						// 恢复 stream, 也许这里不必要
+						needStream = true;
+					} else {
+						messageToWriteTo.content = initialMessageContent + event.text;
+						preMessageContent = messageToWriteTo.content;
+					}
+
 					console.log("final answer:", event.text);
 					// add to latency
 					MetricsServer.getMetrics().model.latency.observe(
@@ -404,25 +413,22 @@ export async function POST({ request, locals, params, getClientAddress }) {
 					);
 					// 链式调用判断是否合适转换成图解
 					if (!doneDiagrammating) {
-						const prompt =
-							"以下内容是否适合用流程图、饼图、Timeline图等形式进行描述？如果合适你帮我转换成 mermaid 格式的数据";
-						ctx.messages = ctx.messages.slice(ctx.messages.length - 1);
-						ctx.messages[ctx.messages.length - 1].content = `${prompt}
+						const prompt = `以下内容是否适合用流程图 (Flowchart)、TimeLine图、序列图 (Sequence Diagram)、类图 (Class Diagram)、状态图 (State Diagram)、实体关系图 (Entity Relationship Diagram, ERD)、甘特图 (Gantt Chart)、用户旅程图 (User Journey Diagram)、饼图 (Pie Chart)、柱状图 (Bar Chart)等形式进行描述？
+						如果合适，你帮我转换成 mermaid 格式的数据输出，只输出一个图片数据，如果不适合则输出空字符
 						'''
 						${messageToWriteTo.content}
 						'''
 						`;
 						doneDiagrammating = true;
+						needStream = false;
 
 						const newCtx = { ...ctx };
-						const msg: Message = {
-							id: "",
-							content: prompt,
-							from: "user",
-						};
-						newCtx.messages.push(msg);
+						// 模型有限频
 						await sleep(1000);
-						for await (const event of textGenerationWithoutTitle(newCtx)) {
+						for await (const event of textGenerationWithPrompt(
+							newCtx,
+							prompt,
+						)) {
 							await update(event);
 						}
 					}
@@ -449,12 +455,12 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				// Avoid remote keylogging attack executed by watching packet lengths
 				// by padding the text with null chars to a fixed length
 				// https://cdn.arstechnica.net/wp-content/uploads/2024/03/LLM-Side-Channel.pdf
-				if (event.type === MessageUpdateType.Stream) {
+				if (event.type === MessageUpdateType.Stream && needStream) {
 					event.token = event.token.padEnd(16, "\0");
 				}
 
 				// Send the update to the client
-				if (event.type !== "finalAnswer" || doneDiagrammating) {
+				if (event.type !== "finalAnswer") {
 					controller.enqueue(`${JSON.stringify(event)}\n`);
 				}
 

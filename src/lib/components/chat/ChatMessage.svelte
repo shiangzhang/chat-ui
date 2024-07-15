@@ -320,7 +320,7 @@ let webSearchIsDone = true;
 				{#each tokens as token}
 					{#if token.type === "code"}
 						{#if token.lang === "mermaid"}
-							<MermaidBlock code={unsanitizeMd(token.text)} />
+							<MermaidBlock isFinshed={!loading} code={unsanitizeMd(token.text)} />
 						{:else}
 							<CodeBlock lang={token.lang} code={unsanitizeMd(token.text)} />
 						{/if}

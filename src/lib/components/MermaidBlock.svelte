@@ -8,13 +8,10 @@ graph LR
 A --- B
 B-->C[fa:fa-ban forbidden]
 B-->D(fa:fa-spinner)`;
-	
+	// biome-ignore lint/style/useConst: <explanation>
+	export let isFinshed = false;
 
-const code2 = `
-graph LR
-A --- B
-B-->C[fa:fa-ban forbidden]
-B-->D(fa:fa-spinner)`;
+
 mermaid.initialize({ 
 		theme: 'neutral', 
 		startOnLoad: false 
@@ -26,7 +23,9 @@ mermaid.initialize({
 	}); 
 	afterUpdate(async () => {
 		console.log("mermaid block update");
-		mermaid.run();
+		if(isFinshed){
+			mermaid.run();
+		}
 	});
 </script>
 
