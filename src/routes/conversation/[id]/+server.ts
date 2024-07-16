@@ -419,7 +419,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 					);
 					// 链式调用判断是否合适转换成图解
 					if (!doneDiagrammating) {
-						const prompt = `以下内容是否适合用流程图 (Flowchart)、TimeLine图、序列图 (Sequence Diagram)、类图 (Class Diagram)、状态图 (State Diagram)、实体关系图 (Entity Relationship Diagram, ERD)、甘特图 (Gantt Chart)、用户旅程图 (User Journey Diagram)、饼图 (Pie Chart)、柱状图 (Bar Chart)等形式进行描述？
+						const prompt = `以下内容是否适合用流程图、TimeLine图、序列图、状态图、实体关系图、甘特图、用户旅程图、饼图、柱状图等图的形式进行描述？
 						如果合适，你帮我转换成 mermaid 格式的数据输出，只输出一个mermaid数据,
 						否则输出<no_mermaid>
 						'''
