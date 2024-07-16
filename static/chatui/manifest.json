@@ -3,7 +3,7 @@
 	"name": "Chat UI",
 	"short_name": "Chat UI",
 	"display": "standalone",
-	"start_url": "/",
+	"start_url": "https",
 	"icons": [
 		{
 			"src": "/chatui/icon-128x128.png",

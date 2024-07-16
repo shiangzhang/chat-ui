@@ -397,7 +397,9 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				else if (event.type === MessageUpdateType.FinalAnswer) {
 					messageToWriteTo.interrupted = event.interrupted;
 					if (doneDiagrammating) {
-						messageToWriteTo.content = `${preMessageContent}\n${event.text}`;
+						if (!event.text.includes("<no_mermaid>")) {
+							messageToWriteTo.content = `${preMessageContent}\n${event.text}`;
+						}
 						// 恢复 stream, 也许这里不必要
 						needStream = true;
 					} else {
@@ -405,7 +407,11 @@ export async function POST({ request, locals, params, getClientAddress }) {
 						preMessageContent = messageToWriteTo.content;
 					}
 
-					console.log("final answer:", event.text);
+					console.log(
+						"final answer:",
+						event.text,
+						`content:${messageToWriteTo.content}`,
+					);
 					// add to latency
 					MetricsServer.getMetrics().model.latency.observe(
 						{ model: model?.id },
@@ -414,7 +420,8 @@ export async function POST({ request, locals, params, getClientAddress }) {
 					// 链式调用判断是否合适转换成图解
 					if (!doneDiagrammating) {
 						const prompt = `以下内容是否适合用流程图 (Flowchart)、TimeLine图、序列图 (Sequence Diagram)、类图 (Class Diagram)、状态图 (State Diagram)、实体关系图 (Entity Relationship Diagram, ERD)、甘特图 (Gantt Chart)、用户旅程图 (User Journey Diagram)、饼图 (Pie Chart)、柱状图 (Bar Chart)等形式进行描述？
-						如果合适，你帮我转换成 mermaid 格式的数据输出，只输出一个图片数据，如果不适合则输出空字符
+						如果合适，你帮我转换成 mermaid 格式的数据输出，只输出一个mermaid数据，不需要有其它多余的字符包裹
+						如果不适合转为以上所述 mermaid 图，则输出<no_mermaid>
 						'''
 						${messageToWriteTo.content}
 						'''
@@ -461,6 +468,9 @@ export async function POST({ request, locals, params, getClientAddress }) {
 
 				// Send the update to the client
 				if (event.type !== "finalAnswer") {
+					if (event.type === "stream" && !needStream) {
+						return;
+					}
 					controller.enqueue(`${JSON.stringify(event)}\n`);
 				}
 

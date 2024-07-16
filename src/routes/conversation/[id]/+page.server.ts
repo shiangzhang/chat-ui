@@ -6,6 +6,7 @@ import { UrlDependency } from "$lib/types/UrlDependency";
 import { convertLegacyConversation } from "$lib/utils/tree/convertLegacyConversation.js";
 
 export const load = async ({ params, depends, locals }) => {
+	// biome-ignore lint/suspicious/noImplicitAnyLet: <explanation>
 	let conversation;
 	let shared = false;
 
