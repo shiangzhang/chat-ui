@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { afterUpdate,onMount } from "svelte";
-	import CopyToClipBoardBtn from "./CopyToClipBoardBtn.svelte";
 	import mermaid from "mermaid";
+	import CopyImageToClipBoardBtn from "./CopyImageToClipBoardBtn.svelte";
 	// biome-ignore lint/style/useConst: <explanation>
 	export let code = `
 graph LR
@@ -13,7 +13,7 @@ B-->D(fa:fa-spinner)`;
 
 
 mermaid.initialize({ 
-		theme: 'neutral', 
+		theme: 'default', 
 		startOnLoad: false 
 	});
 
@@ -34,7 +34,7 @@ mermaid.initialize({
 	<pre class="mermaid">
 		{code}
 	</pre>
-	<CopyToClipBoardBtn
+	<CopyImageToClipBoardBtn
 		classNames="absolute top-2 right-2 invisible opacity-0 group-hover:visible group-hover:opacity-100"
 		value={code}
 	/>

@@ -4,7 +4,6 @@
 	import IconCopy from "./icons/IconCopy.svelte";
 	import Tooltip from "./Tooltip.svelte";
 
-	// biome-ignore lint/style/useConst: <explanation>
 	export let classNames = "";
 	export let value: string;
 
@@ -15,7 +14,7 @@
 		// writeText() can be unavailable or fail in some cases (iframe, etc) so we try/catch
 		try {
 			await navigator.clipboard.writeText(value);
-			// navigator.clipboard.write()
+
 			isSuccess = true;
 			if (timeout) {
 				clearTimeout(timeout);

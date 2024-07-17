@@ -8,9 +8,12 @@
 	import TokensCounter from "$lib/components/TokensCounter.svelte";
 	import CarbonArrowUpRight from "~icons/carbon/arrow-up-right";
 	import CarbonLink from "~icons/carbon/link";
+	import { IllustrationPromptKey } from "$lib/constant";
 
 	const settings = useSettingsStore();
-
+	
+	// biome-ignore lint/style/useConst: <explanation>
+	let localIllustrationPrompt = localStorage?.getItem(IllustrationPromptKey) || envPublic.PUBLIC_ILLUSTRATIONPROMPT || '' ;
 	$: if ($settings.customPrompts[$page.params.model] === undefined) {
 		$settings.customPrompts = {
 			...$settings.customPrompts,
@@ -122,6 +125,38 @@
 			<TokensCounter
 				classNames="absolute bottom-2 right-2"
 				prompt={$settings.customPrompts[$page.params.model]}
+				modelTokenizer={model.tokenizer}
+				truncate={model?.parameters?.truncate}
+			/>
+		{/if}
+	</div>
+<!--localIllustrationPrompt-->
+	<div class="relative flex w-full flex-col gap-2">
+		<div class="flex w-full flex-row content-between">
+			<h3 class="mb-1.5 text-lg font-semibold text-gray-800">Illustration Prompt</h3>
+			{#if localIllustrationPrompt}
+				<button
+					class="ml-auto underline decoration-gray-300 hover:decoration-gray-700"
+					on:click|stopPropagation={() =>
+						(localStorage?.setItem(IllustrationPromptKey, envPublic.PUBLIC_ILLUSTRATIONPROMPT || ''))}
+				>
+					Reset
+				</button>
+			{/if}
+		</div>
+		<textarea
+			rows="10"
+			on:change={() => {
+				console.log(localIllustrationPrompt);
+				localStorage?.setItem(IllustrationPromptKey, localIllustrationPrompt);
+			}}
+			class="w-full resize-none rounded-md border-2 bg-gray-100 p-2"
+			bind:value={localIllustrationPrompt}
+		/>
+		{#if model.tokenizer && localIllustrationPrompt}
+			<TokensCounter
+				classNames="absolute bottom-2 right-2"
+				prompt={localIllustrationPrompt}
 				modelTokenizer={model.tokenizer}
 				truncate={model?.parameters?.truncate}
 			/>

@@ -11,13 +11,15 @@ export async function processPreprompt(preprompt: string) {
 		try {
 			const url = new URL(match[1]);
 			if ((await isURLLocal(url)) && env.ENABLE_LOCAL_FETCH !== "true") {
-				throw new Error("URL couldn't be fetched, it resolved to a local address.");
+				throw new Error(
+					"URL couldn't be fetched, it resolved to a local address.",
+				);
 			}
 
 			const res = await fetch(url.href);
 
 			if (!res.ok) {
-				throw new Error("URL couldn't be fetched, error " + res.status);
+				throw new Error(`URL couldn't be fetched, error ${res.status}`);
 			}
 			const text = await res.text();
 			preprompt = preprompt.replaceAll(match[0], text);
@@ -33,12 +35,14 @@ export async function getAssistantById(id?: ObjectId) {
 	return collections.assistants
 		.findOne<Pick<Assistant, "rag" | "dynamicPrompt" | "generateSettings">>(
 			{ _id: id },
-			{ projection: { rag: 1, dynamicPrompt: 1, generateSettings: 1 } }
+			{ projection: { rag: 1, dynamicPrompt: 1, generateSettings: 1 } },
 		)
 		.then((a) => a ?? undefined);
 }
 
-export function assistantHasWebSearch(assistant?: Pick<Assistant, "rag"> | null) {
+export function assistantHasWebSearch(
+	assistant?: Pick<Assistant, "rag"> | null,
+) {
 	return (
 		env.ENABLE_ASSISTANTS_RAG === "true" &&
 		!!assistant?.rag &&
@@ -48,6 +52,10 @@ export function assistantHasWebSearch(assistant?: Pick<Assistant, "rag"> | null)
 	);
 }
 
-export function assistantHasDynamicPrompt(assistant?: Pick<Assistant, "dynamicPrompt">) {
-	return env.ENABLE_ASSISTANTS_RAG === "true" && Boolean(assistant?.dynamicPrompt);
+export function assistantHasDynamicPrompt(
+	assistant?: Pick<Assistant, "dynamicPrompt">,
+) {
+	return (
+		env.ENABLE_ASSISTANTS_RAG === "true" && Boolean(assistant?.dynamicPrompt)
+	);
 }

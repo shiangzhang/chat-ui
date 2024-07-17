@@ -1,5 +1,6 @@
 <script lang="ts">
 import ChatWindow from "$lib/components/chat/ChatWindow.svelte";
+import { env as envPublic } from "$env/dynamic/public";
 import { pendingMessage } from "$lib/stores/pendingMessage";
 import { isAborted } from "$lib/stores/isAborted";
 import { onMount } from "svelte";
@@ -24,6 +25,7 @@ import { fetchMessageUpdates } from "$lib/utils/messageUpdates";
 import { createConvTreeStore } from "$lib/stores/convTree";
 import type { v4 } from "uuid";
 import { useSettingsStore } from "$lib/stores/settings.js";
+import { IllustrationPromptKey } from "$lib/constant";
 
 // biome-ignore lint/suspicious/noImplicitAnyLet: <explanation>
 export let data;
@@ -206,6 +208,7 @@ async function writeMessage({
 		// disable websearch if assistant is present
 		const hasAssistant = !!$page.data.assistant;
 		const messageUpdatesAbortController = new AbortController();
+		const localIllustrationPrompt = localStorage?.getItem(IllustrationPromptKey) || envPublic.PUBLIC_ILLUSTRATIONPROMPT
 		const messageUpdatesIterator = await fetchMessageUpdates(
 			$page.params.id,
 			{
@@ -217,6 +220,7 @@ async function writeMessage({
 				webSearch: !hasAssistant && $webSearchParameters.useSearch,
 				tools: $settings.tools, // preference for tools
 				files: isRetry ? userMessage?.files : base64Files,
+				userIllustrationPrompt: localIllustrationPrompt,
 			},
 			messageUpdatesAbortController.signal,
 		).catch((err) => {

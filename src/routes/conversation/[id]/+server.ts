@@ -27,6 +27,7 @@ import {
 } from "$lib/server/textGeneration";
 import type { TextGenerationContext } from "$lib/server/textGeneration/types";
 import { sleep } from "openai/core.js";
+import Handlebars from "handlebars";
 
 export async function POST({ request, locals, params, getClientAddress }) {
 	const id = z.string().parse(params.id);
@@ -143,6 +144,17 @@ export async function POST({ request, locals, params, getClientAddress }) {
 
 	// finally parse the content of the request
 	const form = await request.formData();
+	const defaultIllustationPrompt = `
+阅读以下文本内容，判断这些内容里是否有适合用流程图、TimeLine图、序列图、状态图、实体关系图、甘特图、用户旅程图、饼图、柱状图等图的形式进行描述的部分？
+
+如果有，你帮我将这些部分内容转换成 mermaid 格式的数据输出，这次只输出一个mermaid数据,
+如果没有，则输出<no_mermaid>
+
+文本内容:
+'''
+{{content}}
+'''
+`;
 
 	const json = form.get("data");
 
@@ -157,6 +169,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 		is_continue: isContinue,
 		web_search: webSearch,
 		tools: toolsPreferences,
+		userIllustrationPrompt,
 	} = z
 		.object({
 			id: z.string().uuid().refine(isMessageId).optional(), // parent message id to append to for a normal message, or the message id for a retry/continue
@@ -170,6 +183,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 			is_continue: z.optional(z.boolean()),
 			web_search: z.optional(z.boolean()),
 			tools: z.record(z.boolean()).optional(),
+			userIllustrationPrompt: z.optional(z.string()),
 		})
 		.parse(JSON.parse(json));
 
@@ -188,7 +202,9 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				};
 			}),
 	);
-
+	const IllustrationPrompTemplate = Handlebars.compile(
+		userIllustrationPrompt || defaultIllustationPrompt,
+	);
 	if (
 		usageLimits?.messageLength &&
 		(newPrompt?.length ?? 0) > usageLimits.messageLength
@@ -418,14 +434,13 @@ export async function POST({ request, locals, params, getClientAddress }) {
 						Date.now() - promptedAt.getTime(),
 					);
 					// 链式调用判断是否合适转换成图解
-					if (!doneDiagrammating) {
-						const prompt = `以下内容是否适合用流程图、TimeLine图、序列图、状态图、实体关系图、甘特图、用户旅程图、饼图、柱状图等图的形式进行描述？
-						如果合适，你帮我转换成 mermaid 格式的数据输出，只输出一个mermaid数据,
-						否则输出<no_mermaid>
-						'''
-						${messageToWriteTo.content}
-						'''
-						`;
+					if (
+						!doneDiagrammating &&
+						preMessageContent.indexOf("```mermaid\n") < 0
+					) {
+						const prompt = IllustrationPrompTemplate({
+							content: messageToWriteTo.content,
+						});
 						doneDiagrammating = true;
 						needStream = false;
 

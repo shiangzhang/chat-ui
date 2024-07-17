@@ -61,6 +61,7 @@ type MessageUpdateRequestOptions = {
 	webSearch: boolean;
 	tools?: Record<string, boolean>;
 	files?: MessageFile[];
+	userIllustrationPrompt?: string;
 };
 export async function fetchMessageUpdates(
 	conversationId: string,
@@ -79,6 +80,7 @@ export async function fetchMessageUpdates(
 		is_continue: opts.isContinue,
 		web_search: opts.webSearch,
 		tools: opts.tools,
+		userIllustrationPrompt: opts.userIllustrationPrompt,
 	});
 	if (opts.files) {
 		for (const file of opts.files) {
