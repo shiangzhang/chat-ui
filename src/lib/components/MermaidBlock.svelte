@@ -13,8 +13,8 @@ B-->D(fa:fa-spinner)`;
 
 
 mermaid.initialize({ 
-		theme: 'default', 
-		startOnLoad: false 
+		theme: 'base', 
+		startOnLoad: false,
 	});
 
 	onMount(() => {
@@ -31,7 +31,7 @@ mermaid.initialize({
 
 <div class="group relative my-4 rounded-lg">
 	<!-- eslint-disable svelte/no-at-html-tags -->
-	<pre class="mermaid">
+	<pre class="mermaid not-prose">
 		{code}
 	</pre>
 	<CopyImageToClipBoardBtn

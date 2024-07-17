@@ -4,6 +4,7 @@
 	import IconCopy from "./icons/IconCopy.svelte";
 	import Tooltip from "./Tooltip.svelte";
 
+	// biome-ignore lint/style/useConst: <explanation>
 	export let classNames = "";
 	export let value: string;
 

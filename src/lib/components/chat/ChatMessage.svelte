@@ -157,6 +157,14 @@ let webSearchIsDone = true;
 		}
 	});
 
+export	function addMermaidTheme(mdtext:string) {
+		if(mdtext.indexOf('%%{init:')<0){
+			return `%%{init: {'theme': 'base', 'themeVariables': {'background':'#f4f4f4'}}}%%
+			${mdtext}`;
+		}
+		return mdtext;
+	}
+
 	function handleKeyDown(e: KeyboardEvent) {
 		if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
 			editFormEl.requestSubmit();
